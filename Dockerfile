@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.4.1-devel-ubuntu20.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
 LABEL mantainer="Zhuokun Ding <zhuokund@bcm.edu>, Stelios Papadopoulos <spapadop@bcm.edu>, Christos Papadopoulos <cpapadop@bcm.edu>"
 # The following dockerfile is based on jupyter/docker-stacks: https://github.com/jupyter/docker-stacks
 
@@ -71,7 +71,7 @@ RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' /etc/skel/.bashr
    echo 'eval "$(command conda shell.bash hook 2> /dev/null)"' >> /etc/skel/.bashrc
 
 # Pin python version here
-ARG PYTHON_VERSION=3.8
+ARG PYTHON_VERSION=3.10
 
 # Download and install Micromamba, and initialize Conda prefix.
 #   <https://github.com/mamba-org/mamba#micromamba>
@@ -111,10 +111,6 @@ RUN set -x && \
     mamba install --yes \
         'git' \
         'pip' \
-        'notebook' \
-        'jupyterlab' \
-        'jupyterhub' \
-        'jupyterlab-lsp' \
         'python-lsp-server' \
         'r-languageserver' \
         'numpy' \
@@ -176,14 +172,12 @@ RUN set -x && \
         'simplejson' \
         'networkx' \
         'pylint' \
-        'tqdm'
-
+        'tqdm' && \
+    mamba install --yes  -c conda-forge jupyterlab~=4.0
     # pytorch
-RUN mamba install --yes pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch && \
-    mamba update ffmpeg && \
-    jupyter notebook --generate-config && \
+RUN mamba install --yes pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+RUN mamba update ffmpeg && \
     mamba clean --all -f -y && \
-    npm cache clean --force && \
     jupyter lab clean
 
 
@@ -191,10 +185,6 @@ RUN mamba install --yes pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 c
 COPY jupyter_server_config.py /etc/jupyter/
 # Add R mimetype option to specify how the plot returns from R to the browser
 COPY Rprofile.site /opt/conda/lib/R/etc/
-
-# Legacy for Jupyter Notebook Server, see: [#1205](https://github.com/jupyter/docker-stacks/issues/1205)
-RUN sed -re "s/c.ServerApp/c.NotebookApp/g" \
-    /etc/jupyter/jupyter_server_config.py > /etc/jupyter/jupyter_notebook_config.py
 
 # Import matplotlib the first time to build the font cache.
 ENV XDG_CACHE_HOME="${HOME}/.cache/"
