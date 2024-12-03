@@ -1,4 +1,4 @@
 #! /bin/bash
-docker build . -t at-docker:5000/datascience-notebook:cuda11.8.0-python3.8
-docker push at-docker:5000/datascience-notebook:cuda11.8.0-python3.8
+docker build . -t at-docker:5000/datascience-notebook:cuda12.4-python3.12
+docker push at-docker:5000/datascience-notebook:cuda12.4-python3.12
 

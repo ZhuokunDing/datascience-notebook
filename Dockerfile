@@ -1,5 +1,5 @@
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu18.04
-LABEL mantainer="Zhuokun Ding <zhuokund@bcm.edu>, Stelios Papadopoulos <spapadop@bcm.edu>, Christos Papadopoulos <cpapadop@bcm.edu>"
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+LABEL mantainer="Zhuokun Ding <zkding@outlook.com>"
 # The following dockerfile is based on jupyter/docker-stacks: https://github.com/jupyter/docker-stacks
 
 # Fix: https://github.com/hadolint/hadolint/wiki/DL4006
@@ -17,6 +17,7 @@ RUN apt-get update --yes && \
     #   the ubuntu base image is rebuilt too seldom sometimes (less than once a month)
     apt-get upgrade --yes && \
     apt-get install --yes --no-install-recommends \
+    curl \
     # - bzip2 is necessary to extract the micromamba executable.
     bzip2 \
     ca-certificates \
@@ -25,7 +26,7 @@ RUN apt-get update --yes && \
     # - tini is installed as a helpful container entrypoint that reaps zombie
     #   processes and such of the actual executable we want to start, see
     #   https://github.com/krallin/tini#why-tini for details.
-    # tini \  # not available in ubuntu 18.04
+    tini \
     # - pandoc is used to convert notebooks to html files
     #   it's not present in aarch64 ubuntu image, so we install it here
     pandoc \
@@ -71,7 +72,7 @@ RUN sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' /etc/skel/.bashr
    echo 'eval "$(command conda shell.bash hook 2> /dev/null)"' >> /etc/skel/.bashrc
 
 # Pin python version here
-ARG PYTHON_VERSION=3.8
+ENV PYTHON_VERSION=3.12
 
 # Download and install Micromamba, and initialize Conda prefix.
 #   <https://github.com/mamba-org/mamba#micromamba>
@@ -85,34 +86,19 @@ ARG PYTHON_VERSION=3.8
 # files across image layers when the permissions change
 COPY initial-condarc "${CONDA_DIR}/.condarc"
 WORKDIR /tmp
-RUN set -x && \
-    arch=$(uname -m) && \
-    if [ "${arch}" = "x86_64" ]; then \
-        # Should be simpler, see <https://github.com/mamba-org/mamba/issues/1437>
-        arch="64"; \
-    fi && \
-    wget -qO /tmp/micromamba.tar.bz2 \
-        "https://micromamba.snakepit.net/api/micromamba/linux-${arch}/latest" && \
-    tar -xvjf /tmp/micromamba.tar.bz2 --strip-components=1 bin/micromamba && \
-    rm /tmp/micromamba.tar.bz2 && \
+RUN curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj bin/micromamba && \
     PYTHON_SPECIFIER="python=${PYTHON_VERSION}" && \
     # Bootstrap mamba and install conda available packages
-    ./micromamba install \
+    bin/micromamba install \
         --root-prefix="${CONDA_DIR}" \
         --prefix="${CONDA_DIR}" \
         --yes \
         "${PYTHON_SPECIFIER}" \
         'mamba' &&\
-    rm micromamba && \
-    # Pin major.minor version of python
-    mamba list python | grep '^python ' | tr -s ' ' | cut -d ' ' -f 1,2 >> "${CONDA_DIR}/conda-meta/pinned" && \
-    # Pin libblas
-    echo 'libblas=*=*mkl' >> "${CONDA_DIR}/conda-meta/pinned" && \
-    # Pin numpy version to 1.23.5
-    echo 'numpy==1.23.5' >> "${CONDA_DIR}/conda-meta/pinned" && \
-    # Pin torch version 
-    echo 'torch==2.1' >> "${CONDA_DIR}/conda-meta/pinned" && \
-    mamba install --yes \
+    rm bin/micromamba
+# Pin major.minor version of python
+RUN mamba list python | grep 'python ' | sed 's/^[ \t]*//' | tr -s ' ' | cut -d ' ' -f 1,2 >> "${CONDA_DIR}/conda-meta/pinned"
+RUN mamba install --yes \
         'git' \
         'pip' \
         'notebook' \
@@ -130,13 +116,11 @@ RUN set -x && \
         'ipympl'\
         'ipywidgets' \
         'matplotlib-base' \
-        'numba' \
         'numexpr' \
         'openpyxl' \
         'pandas' \
         'patsy' \
         'protobuf' \
-        'pytables' \
         'scikit-image' \
         'scikit-learn' \
         'scipy' \
@@ -144,7 +128,6 @@ RUN set -x && \
         'sqlalchemy' \
         'statsmodels' \
         'widgetsnbextension'\
-        # R
         'r-base' \
         'r-caret' \
         'r-crayon' \
@@ -164,9 +147,11 @@ RUN set -x && \
         'r-shiny' \
         'r-tidyverse' \
         'r-tidymodels' \
+        'r-glmmTMB' \
+        'r-lme4' \
+        'r-performance' \
         'rpy2' \
         'unixodbc' \
-        # holoviz
         'holoviews' \
         'bokeh' \
         'panel' \
@@ -174,7 +159,6 @@ RUN set -x && \
         'datashader' \
         'param' \
         'colorcet' \
-        # useful packages
         'pytest' \
         'pytest-cov' \
         'simplejson' \
@@ -182,8 +166,7 @@ RUN set -x && \
         'pylint' \
         'tqdm'
 
-    # pytorch
-RUN mamba install --yes pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia && \
+RUN mamba install --yes pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia && \
     mamba update ffmpeg && \
     jupyter notebook --generate-config && \
     mamba clean --all -f -y && \
