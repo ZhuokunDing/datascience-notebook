@@ -166,7 +166,7 @@ RUN mamba install --yes \
         'pylint' \
         'tqdm'
 
-RUN mamba install --yes pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia && \
+RUN mamba install --yes pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 pytorch-cuda=12.4 -c pytorch -c nvidia && \
     mamba update ffmpeg && \
     jupyter notebook --generate-config && \
     mamba clean --all -f -y && \
