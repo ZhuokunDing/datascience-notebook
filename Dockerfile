@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 LABEL mantainer="Zhuokun Ding <zkding@outlook.com>"
 # The following dockerfile is based on jupyter/docker-stacks: https://github.com/jupyter/docker-stacks
 
@@ -165,14 +165,13 @@ RUN mamba install --yes \
         'networkx' \
         'pylint' \
         'tqdm'
-
-RUN mamba install --yes pytorch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 pytorch-cuda=12.4 -c pytorch -c nvidia && \
-    mamba update ffmpeg && \
+RUN mamba update ffmpeg && \
     jupyter notebook --generate-config && \
     mamba clean --all -f -y && \
     npm cache clean --force && \
     jupyter lab clean
 
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 # Currently need to have both jupyter_notebook_config and jupyter_server_config to support classic and lab
 COPY jupyter_server_config.py /etc/jupyter/
